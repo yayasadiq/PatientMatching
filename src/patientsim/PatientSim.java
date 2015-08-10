@@ -4,6 +4,7 @@
  */
 package patientsim;
 
+import extensions.ApproxEqual;
 import extensions.DTW;
 import extensions.Cosine;
 import extensions.Jaccard;
@@ -25,10 +26,13 @@ import jcolibri.cbrcore.CBRCaseBase;
 import jcolibri.cbrcore.CBRQuery;
 import jcolibri.cbrcore.Connector;
 import jcolibri.exception.ExecutionException;
+import jcolibri.method.retrieve.FilterBasedRetrieval.FilterBasedRetrievalMethod;
+import jcolibri.method.retrieve.FilterBasedRetrieval.FilterConfig;
+import jcolibri.method.retrieve.FilterBasedRetrieval.predicates.Equal;
 import jcolibri.method.retrieve.NNretrieval.NNConfig;
 import jcolibri.method.retrieve.NNretrieval.NNScoringMethod;
 import jcolibri.method.retrieve.NNretrieval.similarity.global.Average;
-import jcolibri.method.retrieve.NNretrieval.similarity.local.Equal;
+//import jcolibri.method.retrieve.NNretrieval.similarity.local.Equal;
 import jcolibri.method.retrieve.RetrievalResult;
 import jcolibri.method.retrieve.selection.SelectCases;
 import model.CsvConnector;
@@ -42,7 +46,8 @@ public class PatientSim implements StandardCBRApplication{
     
     private Connector connector;
     private CBRCaseBase casebase;
-    private NNConfig simConfig;
+    private NNConfig nnConfig;
+    private FilterConfig fConfig;
     private String cbPath;   
     private BufferedWriter out;
     private String outPath;
@@ -56,12 +61,16 @@ public class PatientSim implements StandardCBRApplication{
     public void configure() throws ExecutionException{
         connector  = new CsvConnector(cbPath);
         casebase = new LinealCaseBase();
-        simConfig = new NNConfig();
-        simConfig.setDescriptionSimFunction(new Average());
-        simConfig.addMapping(new Attribute("age", PatientDescription.class), new Equal());
-        simConfig.addMapping(new Attribute("bts", PatientDescription.class), new DTW());
-        simConfig.addMapping(new Attribute("control", PatientDescription.class), new DTW());
-        simConfig.addMapping(new Attribute("drugVec", PatientDescription.class), new Jaccard());
+        
+        fConfig = new FilterConfig();
+        fConfig.addPredicate(new Attribute("age", PatientDescription.class), new ApproxEqual());
+        
+        nnConfig = new NNConfig();
+        nnConfig.setDescriptionSimFunction(new Average());
+//        nnConfig.addMapping(new Attribute("age", PatientDescription.class), new Equal());
+        nnConfig.addMapping(new Attribute("bts", PatientDescription.class), new DTW());
+        nnConfig.addMapping(new Attribute("control", PatientDescription.class), new DTW());
+        nnConfig.addMapping(new Attribute("drugVec", PatientDescription.class), new Jaccard());
         
         try{
             out = new BufferedWriter(new FileWriter(new File(outPath)));
@@ -73,17 +82,16 @@ public class PatientSim implements StandardCBRApplication{
     @Override
     public CBRCaseBase preCycle() throws ExecutionException {
         casebase.init(connector); 
-        Collection<CBRCase> cases = casebase.getCases();
-        for (CBRCase _c:cases){
-            PatientDescription patient = (PatientDescription)_c.getDescription();
-//            System.out.println(patient.getId());
-        }
+        Collection<CBRCase> cases = casebase.getCases();       
         return casebase;
     }
 
     @Override
     public void cycle(CBRQuery cbrq) throws ExecutionException {
-        Collection<RetrievalResult> result = NNScoringMethod.evaluateSimilarity(casebase.getCases(), cbrq, simConfig);
+        //filter cases that are not same age as query case
+        Collection<CBRCase> fCases = FilterBasedRetrievalMethod.filterCases(casebase.getCases(), cbrq, fConfig);
+        
+        Collection<RetrievalResult> result = NNScoringMethod.evaluateSimilarity(fCases, cbrq, nnConfig);
         Collection<RetrievalResult> retievedCases = SelectCases.selectTopKRR(result, 1);
         DecimalFormat df = new DecimalFormat("0.00");
         for(RetrievalResult rr:retievedCases){

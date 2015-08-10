@@ -20,7 +20,7 @@ public class PatientSimMain {
 //        String cbPath = "C:\\OneDrive\\PostDoc\\Nirmalie\\PatientData\\Controls.csv"; 
 //        String qPath = "C:\\OneDrive\\PostDoc\\Nirmalie\\PatientData\\Cases.csv";
         if(args.length<3){
-            System.out.println("USAGE:  java -jar PatientPairs \tcontrols_file \tcases_file \toutput_file");
+            System.out.println("USAGE:  java -jar PatientMatching.jar \tcontrols_file \tcases_file \toutput_file");
             System.exit(1);
         }else{
             String cbPath = args[0];
