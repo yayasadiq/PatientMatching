@@ -7,8 +7,8 @@ package view;
 import java.util.Collection;
 import jcolibri.cbrcore.CBRCase;
 import jcolibri.exception.ExecutionException;   
-import model.CsvConnector;
-import patientsim.PatientSim;
+import patientMatching.CsvConnector;
+import patientMatching.PatientSim;
 
 /**
  *
